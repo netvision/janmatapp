@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">janmat-agent-app</string>
+    <string name="title_activity_main">janmat-agent-app</string>
+    <string name="package_name">janmatagent.netserve.in</string>
+    <string name="custom_url_scheme">janmatagent.netserve.in</string>
+</resources>
