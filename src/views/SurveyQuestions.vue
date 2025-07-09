@@ -83,24 +83,52 @@
         </div>
 
         <div v-if="questions.length === 0" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-          No questions found for this survey.
+          <p class="font-medium text-yellow-800">No questions found for this survey.</p>
+          <p class="text-yellow-700 text-sm mt-1">Questions loaded: {{ questions.length }}</p>
         </div>
 
-        <draggable v-model="questions" @end="onReorder" item-key="id" class="space-y-4 mb-8">
-          <template #item="{ element: q, index: idx }">
-            <li class="bg-white shadow rounded-lg p-4 flex justify-between items-center">
-              <div>
-                <div class="font-medium text-gray-900">{{ idx + 1 }}. {{ q.text }}</div>
-                <div class="text-sm text-gray-600">Type: {{ getTypeText(q.type) }} | Required: {{ q.required ? 'Yes' : 'No' }}</div>
-                <div v-if="q.options && q.options.length" class="text-xs text-gray-500 mt-1">Options: {{ q.options.join(', ') }}</div>
+        <!-- Debug info (remove in production) -->
+        <div v-if="questions.length > 0" class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+          <p class="text-sm text-gray-600">Debug: {{ questions.length }} questions loaded</p>
+        </div>
+
+        <div class="space-y-4 mb-8">
+          <div 
+            v-for="(q, idx) in questions" 
+            :key="q.id"
+            class="bg-white shadow rounded-lg p-6 flex justify-between items-start hover:shadow-md transition-shadow"
+          >
+            <div class="flex-1 mr-4">
+              <div class="font-medium text-gray-900 text-lg mb-2">{{ idx + 1 }}. {{ q.text }}</div>
+              <div class="text-sm text-gray-600 mb-1">Type: {{ getTypeText(q.type) }} | Required: {{ q.required ? 'Yes' : 'No' }}</div>
+              <div v-if="q.options && q.options.length" class="text-xs text-gray-500">Options: {{ q.options.join(', ') }}</div>
+            </div>
+            <div class="flex space-x-2 flex-shrink-0">
+              <button @click="editQuestion(idx)" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm hover:shadow-md">
+                ✏️ Edit
+              </button>
+              <button @click="deleteQuestion(q.id)" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm hover:shadow-md">
+                🗑️ Delete
+              </button>
+              <div class="flex flex-col space-y-1">
+                <button 
+                  @click="moveQuestion(idx, 'up')" 
+                  :disabled="idx === 0"
+                  class="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-2 py-1 rounded text-xs transition-colors"
+                >
+                  ↑
+                </button>
+                <button 
+                  @click="moveQuestion(idx, 'down')" 
+                  :disabled="idx === questions.length - 1"
+                  class="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-2 py-1 rounded text-xs transition-colors"
+                >
+                  ↓
+                </button>
               </div>
-              <div class="flex space-x-2">
-                <button @click="editQuestion(idx)" class="text-blue-600 hover:underline">Edit</button>
-                <button @click="deleteQuestion(q.id)" class="text-red-600 hover:underline">Delete</button>
-              </div>
-            </li>
-          </template>
-        </draggable>
+            </div>
+          </div>
+        </div>
 
         <!-- Add/Edit Question Modal -->
         <div v-if="showAdd || editIdx !== null" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
@@ -147,7 +175,6 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import draggable from 'vuedraggable'
 
 const route = useRoute()
 const router = useRouter()
@@ -168,11 +195,15 @@ const fetchQuestions = async () => {
       api.get(`/responses/analytics?survey_id=${surveyId}`)
     ])
     
+    console.log('Questions response:', questionsRes.data)
+    
     surveyTitle.value = questionsRes.data.data.title
     questions.value = (questionsRes.data.data.questions || []).map(q => ({
       ...q,
       options: Array.isArray(q.options) ? q.options : [],
     }))
+    
+    console.log('Processed questions:', questions.value)
     
     analytics.value = analyticsRes.data.data
   } catch (e) {
@@ -204,9 +235,11 @@ const handleSave = async () => {
       // Update question
       const q = questions.value[editIdx.value]
       await api.put(`/questions/${q.id}/update`, payload)
+      alert('Question updated successfully!')
     } else {
       // Add question
       await api.post(`/surveys/${surveyId}/questions/create`, payload)
+      alert('Question added successfully!')
     }
     await fetchQuestions()
     closeModal()
@@ -217,6 +250,7 @@ const handleSave = async () => {
 }
 
 const editQuestion = (idx) => {
+  console.log('Edit question clicked:', idx, questions.value[idx])
   editIdx.value = idx
   const q = questions.value[idx]
   
@@ -246,9 +280,14 @@ const editQuestion = (idx) => {
 }
 
 const deleteQuestion = async (id) => {
-  if (!confirm('Delete this question?')) return
+  console.log('Delete question clicked:', id)
+  const question = questions.value.find(q => q.id === id)
+  const questionText = question ? question.text.substring(0, 50) + (question.text.length > 50 ? '...' : '') : 'this question'
+  
+  if (!confirm(`Are you sure you want to delete "${questionText}"? This action cannot be undone.`)) return
   try {
     await api.post(`/questions/${id}/delete`)
+    alert('Question deleted successfully!')
     await fetchQuestions()
   } catch (e) {
     console.error('Error deleting question:', e.response?.data || e.message)
@@ -256,10 +295,20 @@ const deleteQuestion = async (id) => {
   }
 }
 
-const onReorder = async (evt) => {
-  // evt is the drag event, but we use the new questions.value order
+const moveQuestion = async (idx, direction) => {
+  if (direction === 'up' && idx === 0) return
+  if (direction === 'down' && idx === questions.value.length - 1) return
+  
+  const newQuestions = [...questions.value]
+  const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+  
+  // Swap questions
+  const temp = newQuestions[idx]
+  newQuestions[idx] = newQuestions[targetIdx]
+  newQuestions[targetIdx] = temp
+  
   try {
-    const order = questions.value.map(q => q.id)
+    const order = newQuestions.map(q => q.id)
     await api.post(`/surveys/${surveyId}/questions/reorder`, { order })
     await fetchQuestions()
   } catch (e) {
