@@ -119,12 +119,35 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
-            <select v-model="dateRange" @change="fetchAnalytics" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select v-model="dateRange" @change="handleDateRangeChange" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="all">All Time</option>
               <option value="today">Today</option>
               <option value="week">Last 7 Days</option>
               <option value="month">Last 30 Days</option>
+              <option value="custom">Custom Range</option>
             </select>
+          </div>
+        </div>
+        
+        <!-- Custom Date Range Inputs -->
+        <div v-if="dateRange === 'custom'" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+            <input
+              v-model="customDateFrom"
+              type="date"
+              @change="fetchAnalytics"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+            <input
+              v-model="customDateTo"
+              type="date"
+              @change="fetchAnalytics"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
         </div>
         <div v-if="selectedAgent || selectedSurvey || dateRange !== 'all'" class="mt-4 p-3 bg-blue-50 rounded-lg">
@@ -134,7 +157,10 @@
               <span v-if="selectedAgent && selectedSurvey"> | </span>
               <span v-if="selectedSurvey">Survey: {{ surveys.find(s => s.id == selectedSurvey)?.title }}</span>
               <span v-if="(selectedAgent || selectedSurvey) && dateRange !== 'all'"> | </span>
-              <span v-if="dateRange !== 'all'">Period: {{ dateRange.charAt(0).toUpperCase() + dateRange.slice(1) }}</span>
+              <span v-if="dateRange !== 'all' && dateRange !== 'custom'">Period: {{ dateRange.charAt(0).toUpperCase() + dateRange.slice(1) }}</span>
+              <span v-if="dateRange === 'custom' && customDateFrom && customDateTo">
+                Period: {{ formatDateInput(customDateFrom) }} to {{ formatDateInput(customDateTo) }}
+              </span>
             </p>
             <button @click="clearFilters" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
               Clear Filters
@@ -361,6 +387,8 @@ const totalResponses = ref(0)
 const selectedAgent = ref('')
 const selectedSurvey = ref('')
 const dateRange = ref('all')
+const customDateFrom = ref('')
+const customDateTo = ref('')
 
 // Color palette for pie charts
 const pieColors = [
@@ -700,22 +728,33 @@ const fetchAnalytics = async () => {
         const now = new Date()
         let dateFrom, dateTo
         
-        switch (dateRange.value) {
-          case 'today':
-            // Today: from start of today to end of today
-            dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-            dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
-            break
-          case 'week':
-            // Last 7 days: from 7 days ago to now
-            dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-            dateTo = now
-            break
-          case 'month':
-            // Last 30 days: from 30 days ago to now
-            dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-            dateTo = now
-            break
+        if (dateRange.value === 'custom') {
+          // Use custom date range
+          if (customDateFrom.value) {
+            dateFrom = new Date(customDateFrom.value)
+          }
+          if (customDateTo.value) {
+            dateTo = new Date(customDateTo.value)
+            dateTo.setHours(23, 59, 59, 999) // Set to end of day
+          }
+        } else {
+          switch (dateRange.value) {
+            case 'today':
+              // Today: from start of today to end of today
+              dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+              dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+              break
+            case 'week':
+              // Last 7 days: from 7 days ago to now
+              dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+              dateTo = now
+              break
+            case 'month':
+              // Last 30 days: from 30 days ago to now
+              dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+              dateTo = now
+              break
+          }
         }
         
         if (dateFrom) {
@@ -788,16 +827,31 @@ const fetchAnalytics = async () => {
           // For demo purposes, apply a multiplier to simulate date filtering
           // In a real scenario, you'd need actual timestamp data to filter properly
           let dateMultiplier = 1
-          switch (dateRange.value) {
-            case 'today':
+          
+          if (dateRange.value === 'custom') {
+            // For custom ranges, calculate based on days difference
+            const daysDiff = Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24))
+            if (daysDiff <= 1) {
               dateMultiplier = 0.05
-              break
-            case 'week':
+            } else if (daysDiff <= 7) {
               dateMultiplier = 0.3
-              break
-            case 'month':
+            } else if (daysDiff <= 30) {
               dateMultiplier = 0.8
-              break
+            } else {
+              dateMultiplier = 0.9
+            }
+          } else {
+            switch (dateRange.value) {
+              case 'today':
+                dateMultiplier = 0.05
+                break
+              case 'week':
+                dateMultiplier = 0.3
+                break
+              case 'month':
+                dateMultiplier = 0.8
+                break
+            }
           }
           
           analytics.value = allAnalytics.map(survey => ({
@@ -880,22 +934,34 @@ const fetchAnalytics = async () => {
       if (dateRange.value !== 'all') {
         const now = new Date()
         let dateFrom, dateTo
-        switch (dateRange.value) {
-          case 'today':
-            // Today: from start of day to end of day
-            dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-            dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
-            break
-          case 'week':
-            // Last 7 days: from 7 days ago to now
-            dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-            dateTo = now
-            break
-          case 'month':
-            // Last 30 days: from 30 days ago to now
-            dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-            dateTo = now
-            break
+        
+        if (dateRange.value === 'custom') {
+          // Use custom date range
+          if (customDateFrom.value) {
+            dateFrom = new Date(customDateFrom.value)
+          }
+          if (customDateTo.value) {
+            dateTo = new Date(customDateTo.value)
+            dateTo.setHours(23, 59, 59, 999) // Set to end of day
+          }
+        } else {
+          switch (dateRange.value) {
+            case 'today':
+              // Today: from start of day to end of day
+              dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+              dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+              break
+            case 'week':
+              // Last 7 days: from 7 days ago to now
+              dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+              dateTo = now
+              break
+            case 'month':
+              // Last 30 days: from 30 days ago to now
+              dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+              dateTo = now
+              break
+          }
         }
         
         if (dateFrom && dateTo) {
@@ -1132,7 +1198,27 @@ const clearFilters = () => {
   selectedAgent.value = ''
   selectedSurvey.value = ''
   dateRange.value = 'all'
+  customDateFrom.value = ''
+  customDateTo.value = ''
   fetchAnalytics()
+}
+
+const handleDateRangeChange = () => {
+  if (dateRange.value !== 'custom') {
+    customDateFrom.value = ''
+    customDateTo.value = ''
+  }
+  fetchAnalytics()
+}
+
+const formatDateInput = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  })
 }
 
 const clearCache = () => {
