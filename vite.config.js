@@ -22,4 +22,6 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
   },
+  // SPA fallback for client-side routing
+  appType: 'spa',
 }) 

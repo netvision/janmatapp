@@ -77,6 +77,11 @@ const routes = [
     name: 'EditAgent',
     component: () => import('@/views/EditAgent.vue'),
     meta: { requiresAuth: true }
+  },
+  // Catch-all route for handling 404s - must be last
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/dashboard'
   }
 ]
 
