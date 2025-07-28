@@ -81,6 +81,7 @@ return [
                 'api/v1/responses' => 'api/response/index',
                 'api/v1/responses/submit' => 'api/response/submit',
                 'api/v1/responses/analytics' => 'api/response/analytics',
+                'api/v1/responses/download-csv' => 'api/response/download-csv',
                 'api/v1/responses/dashboard-analytics' => 'api/response/dashboard-analytics',
                 'api/v1/responses/agent-stats' => 'api/response/agent-stats',  // NEW: Added missing endpoint
                 'api/v1/responses/<id:\d+>' => 'api/response/view',

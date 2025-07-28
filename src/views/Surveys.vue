@@ -90,6 +90,14 @@
                   Manage Questions
                 </router-link>
                 <button
+                  @click="downloadStats(survey)"
+                  class="text-green-600 hover:text-green-900 mr-3"
+                  :disabled="survey.responses_count === 0"
+                  :class="{ 'opacity-50 cursor-not-allowed': survey.responses_count === 0 }"
+                >
+                  Download Stats
+                </button>
+                <button
                   @click="deleteSurvey(survey.id)"
                   class="text-red-600 hover:text-red-900"
                 >
@@ -371,6 +379,66 @@ const deleteSurvey = async (id) => {
     await loadSurveys()
   } catch (error) {
     console.error('Error deleting survey:', error)
+  }
+}
+
+const downloadStats = async (survey) => {
+  if (survey.responses_count === 0) return
+  
+  try {
+    console.log('Downloading stats for survey:', survey.title)
+    
+    // First try to get the CSV data
+    const response = await api.get(`/responses/download-csv?survey_id=${survey.id}`, {
+      responseType: 'blob'
+    })
+    
+    // Check if response is actually an error (JSON) instead of CSV
+    if (response.headers['content-type']?.includes('application/json')) {
+      // Convert blob back to text to read error
+      const text = await response.data.text()
+      const errorData = JSON.parse(text)
+      throw new Error(errorData.message || 'Server error occurred')
+    }
+    
+    // Create download
+    const blob = new Blob([response.data], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    
+    const filename = `${survey.title.replace(/[^a-z0-9]/gi, '_')}_responses_${new Date().toISOString().split('T')[0]}.csv`
+    
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.style.display = 'none'
+    
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    console.log('Download completed successfully')
+    
+  } catch (error) {
+    console.error('Download error:', error)
+    console.error('Full error object:', error.response)
+    
+    let errorMessage = 'Failed to download statistics. '
+    
+    if (error.response?.data) {
+      try {
+        // Try to parse error response
+        const errorText = await error.response.data.text()
+        const errorData = JSON.parse(errorText)
+        errorMessage += errorData.message || 'Unknown server error.'
+      } catch (parseError) {
+        errorMessage += 'Server error (500). Please check server logs.'
+      }
+    } else {
+      errorMessage += error.message || 'Please try again.'
+    }
+    
+    alert(errorMessage)
   }
 }
 
