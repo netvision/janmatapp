@@ -78,6 +78,12 @@ const routes = [
     component: () => import('@/views/EditAgent.vue'),
     meta: { requiresAuth: true }
   },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('@/views/Profile.vue'),
+    meta: { requiresAuth: true }
+  },
   // Catch-all route for handling 404s - must be last
   {
     path: '/:pathMatch(.*)*',

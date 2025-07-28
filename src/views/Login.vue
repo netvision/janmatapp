@@ -37,6 +37,10 @@
           </div>
         </div>
 
+        <div v-if="successMessage" class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+          <p class="text-sm text-green-600">{{ successMessage }}</p>
+        </div>
+
         <div v-if="error" class="text-red-600 text-sm text-center">
           {{ error }}
         </div>
@@ -62,11 +66,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const form = ref({
@@ -76,6 +81,16 @@ const form = ref({
 
 const loading = ref(false)
 const error = ref('')
+const successMessage = ref('')
+
+// Check for success message in URL params
+onMounted(() => {
+  if (route.query.message) {
+    successMessage.value = route.query.message
+    // Clear the URL parameter after showing the message
+    router.replace({ query: {} })
+  }
+})
 
 const handleLogin = async () => {
   loading.value = true

@@ -4,6 +4,16 @@ $params = array_merge(
     require __DIR__ . '/params-local.php'
 );
 
+// Ensure JWT key is set
+if (!isset($params['jwtSecret'])) {
+    $params['jwtSecret'] = 'janmat-survey-jwt-secret-key-change-in-production-2024';
+}
+
+// Set JWT expiration if not set
+if (!isset($params['jwtExpire'])) {
+    $params['jwtExpire'] = 7 * 24 * 60 * 60; // 7 days
+}
+
 return [
     'id' => 'app-backend',
     'basePath' => dirname(__DIR__) . '/app',
@@ -56,6 +66,7 @@ return [
                 'api/v1/test/auth' => 'api/test/auth',
                 'api/v1/auth/login' => 'api/auth/login',
                 'api/v1/auth/refresh' => 'api/auth/refresh',
+                'api/v1/auth/change-password' => 'api/auth/change-password',
                 'api/v1/surveys' => 'api/survey/index',
                 'api/v1/surveys/create' => 'api/survey/create',
                 'api/v1/surveys/<id:\d+>' => 'api/survey/view',
