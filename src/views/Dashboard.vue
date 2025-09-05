@@ -120,7 +120,7 @@
               </div>
             </template>
             <template v-else>
-              <div v-for="(survey, idx) in latestSurveys" :key="survey.id" class="border rounded-lg p-4 cursor-pointer transform hover:-translate-y-1 transition relative overflow-hidden" :class="`border-t-4 ${['border-blue-500','border-green-500','border-pink-500','border-teal-500'][idx % 4]}`" @click="goToSurvey(survey.id)">
+              <div v-for="(survey, idx) in latestSurveys" :key="survey.id" :data-survey-id="survey.id" class="border rounded-lg p-4 cursor-pointer transform hover:-translate-y-1 transition relative overflow-hidden" :class="`border-t-4 ${['border-blue-500','border-green-500','border-pink-500','border-teal-500'][idx % 4]}`" @click="goToSurvey(survey.id)">
                 <!-- per-card inline spinner -->
                 <div v-if="loading" class="absolute top-3 right-3">
                   <svg class="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -132,7 +132,7 @@
                 <div class="flex items-start">
                   <div class="w-28 h-28 mr-4 flex-shrink-0">
                     <!-- small analytics graphic: if analytics present, show pie chart, else placeholder -->
-                    <component v-if="getMiniChartData(survey.id)" :is="PieChart" :data="getMiniChartData(survey.id).data" :labels="getMiniChartData(survey.id).labels" :colors="pieColors" :width="112" :height="112" :showLegend="false" />
+                    <component v-if="isChartVisible(survey.id) && miniChartCache.has(String(survey.id))" :is="PieChart" :data="miniChartCache.get(String(survey.id)).data" :labels="miniChartCache.get(String(survey.id)).labels" :colors="pieColors" :width="112" :height="112" :showLegend="false" />
                     <div v-else class="w-28 h-28 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-500">No data</div>
                   </div>
                   <div class="flex-1">
@@ -156,7 +156,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import SurveyAnalyticsModal from '@/components/SurveyAnalyticsModal.vue'
@@ -190,6 +190,14 @@ const showAnalyticsModal = ref(false)
 const analyticsSurveyId = ref(null)
 const agentStats = ref([])
 const totalResponses = ref(0)
+
+// Mini-chart memoization and visibility tracking
+const miniChartCache = new Map()
+const visibleCharts = ref(new Set())
+
+const isChartVisible = (surveyId) => {
+  return visibleCharts.value.has(String(surveyId))
+}
 
 // Filters
 const selectedAgent = ref('')
@@ -1182,4 +1190,47 @@ onMounted(() => {
   fetchDashboardData().catch(() => {})
   loadSurveys()
 })
+
+// Intersection observer to lazily render charts when cards enter viewport
+let observer = null
+const observeChartCards = async () => {
+  await nextTick()
+  const options = { root: null, rootMargin: '0px', threshold: 0.25 }
+  observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const id = entry.target.getAttribute('data-survey-id')
+      if (!id) return
+      if (entry.isIntersecting) {
+        visibleCharts.value.add(String(id))
+        // precompute chart data if not present
+        if (!miniChartCache.has(String(id))) {
+          const d = getMiniChartData(id)
+          if (d) miniChartCache.set(String(id), d)
+        }
+      }
+    })
+  }, options)
+
+  document.querySelectorAll('[data-survey-id]').forEach(el => observer.observe(el))
+}
+
+onBeforeUnmount(() => {
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
+})
+
+// Re-observe when surveys/analytics change
+watch([latestSurveys, analytics], () => {
+  // clear old cache for surveys that no longer exist
+  const ids = new Set(latestSurveys.value.map(s => String(s.id)))
+  Array.from(miniChartCache.keys()).forEach(k => { if (!ids.has(k)) miniChartCache.delete(k) })
+  // start/refresh observer
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
+  observeChartCards()
+}, { immediate: true })
 </script>
