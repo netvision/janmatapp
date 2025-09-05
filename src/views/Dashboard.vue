@@ -1,100 +1,153 @@
 <template>
   <div class="container mx-auto px-4 py-8">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-4xl mx-auto relative">
       <h1 class="text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
       <!-- Summary Section (colorful) -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <!-- Total Surveys (blue) -->
-        <div class="relative overflow-hidden rounded-lg shadow transform hover:-translate-y-1 transition">
-          <div class="h-1 bg-gradient-to-r from-blue-400 to-blue-600"></div>
-          <div class="p-6 bg-white">
-            <div class="flex items-center justify-center mb-3">
-              <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-3">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v4a1 1 0 001 1h3m10 0h3a1 1 0 001-1V7M7 21h10M12 7v14"/>
-                </svg>
-              </div>
-              <div class="text-left">
-                <p class="text-sm font-medium text-gray-600">Total Surveys</p>
-                <p class="text-2xl font-semibold text-blue-800">{{ stats.totalSurveys }}</p>
+        <!-- Show skeletons while loading -->
+        <template v-if="loading">
+          <div v-for="n in 4" :key="n" class="rounded-lg shadow p-6 bg-white animate-pulse">
+            <div class="h-1 bg-gray-200 rounded mb-4"></div>
+            <div class="flex items-center">
+              <div class="w-12 h-12 rounded-full bg-gray-200 mr-4"></div>
+              <div class="flex-1">
+                <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div class="h-6 bg-gray-200 rounded w-1/3"></div>
               </div>
             </div>
           </div>
-        </div>
+        </template>
+        <!-- Real summary cards -->
+        <template v-else>
+          <!-- Total Surveys (blue) -->
+          <div class="relative overflow-hidden rounded-lg shadow transform hover:-translate-y-1 transition">
+            <div class="h-1 bg-gradient-to-r from-blue-400 to-blue-600"></div>
+            <div class="p-6 bg-white">
+              <div class="flex items-center justify-center mb-3">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-3">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v4a1 1 0 001 1h3m10 0h3a1 1 0 001-1V7M7 21h10M12 7v14"/>
+                  </svg>
+                </div>
+                <div class="text-left">
+                  <p class="text-sm font-medium text-gray-600">Total Surveys</p>
+                  <p class="text-2xl font-semibold text-blue-800">{{ stats.totalSurveys }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <!-- Total Responses (green) -->
-        <div class="relative overflow-hidden rounded-lg shadow transform hover:-translate-y-1 transition">
-          <div class="h-1 bg-gradient-to-r from-green-400 to-green-600"></div>
-          <div class="p-6 bg-white">
-            <div class="flex items-center justify-center mb-3">
-              <div class="p-3 rounded-full bg-green-100 text-green-600 mr-3">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h4l3 9 4-18 3 9h4"/>
-                </svg>
-              </div>
-              <div class="text-left">
-                <p class="text-sm font-medium text-gray-600">Total Responses</p>
-                <p class="text-2xl font-semibold text-green-800">{{ stats.totalResponses }}</p>
+          <!-- Total Responses (green) -->
+          <div class="relative overflow-hidden rounded-lg shadow transform hover:-translate-y-1 transition">
+            <div class="h-1 bg-gradient-to-r from-green-400 to-green-600"></div>
+            <div class="p-6 bg-white">
+              <div class="flex items-center justify-center mb-3">
+                <div class="p-3 rounded-full bg-green-100 text-green-600 mr-3">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h4l3 9 4-18 3 9h4"/>
+                  </svg>
+                </div>
+                <div class="text-left">
+                  <p class="text-sm font-medium text-gray-600">Total Responses</p>
+                  <p class="text-2xl font-semibold text-green-800">{{ stats.totalResponses }}</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Today's Responses (purple) -->
-        <div class="relative overflow-hidden rounded-lg shadow transform hover:-translate-y-1 transition">
-          <div class="h-1 bg-gradient-to-r from-purple-400 to-pink-500"></div>
-          <div class="p-6 bg-white">
-            <div class="flex items-center justify-center mb-3">
-              <div class="p-3 rounded-full bg-pink-100 text-pink-600 mr-3">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3M12 2a10 10 0 100 20 10 10 0 000-20z"/>
-                </svg>
-              </div>
-              <div class="text-left">
-                <p class="text-sm font-medium text-gray-600">Today's Responses</p>
-                <p class="text-2xl font-semibold text-pink-800">{{ stats.todayResponses }}</p>
+          <!-- Today's Responses (purple) -->
+          <div class="relative overflow-hidden rounded-lg shadow transform hover:-translate-y-1 transition">
+            <div class="h-1 bg-gradient-to-r from-purple-400 to-pink-500"></div>
+            <div class="p-6 bg-white">
+              <div class="flex items-center justify-center mb-3">
+                <div class="p-3 rounded-full bg-pink-100 text-pink-600 mr-3">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3M12 2a10 10 0 100 20 10 10 0 000-20z"/>
+                  </svg>
+                </div>
+                <div class="text-left">
+                  <p class="text-sm font-medium text-gray-600">Today's Responses</p>
+                  <p class="text-2xl font-semibold text-pink-800">{{ stats.todayResponses }}</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Active Agents (teal) -->
-        <div class="relative overflow-hidden rounded-lg shadow transform hover:-translate-y-1 transition">
-          <div class="h-1 bg-gradient-to-r from-teal-400 to-teal-600"></div>
-          <div class="p-6 bg-white">
-            <div class="flex items-center justify-center mb-3">
-              <div class="p-3 rounded-full bg-teal-100 text-teal-600 mr-3">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m6-6a4 4 0 11-8 0 4 4 0 018 0z"/>
-                </svg>
-              </div>
-              <div class="text-left">
-                <p class="text-sm font-medium text-gray-600">Active Agents</p>
-                <p class="text-2xl font-semibold text-teal-800">{{ stats.activeAgents }}</p>
+          <!-- Active Agents (teal) -->
+          <div class="relative overflow-hidden rounded-lg shadow transform hover:-translate-y-1 transition">
+            <div class="h-1 bg-gradient-to-r from-teal-400 to-teal-600"></div>
+            <div class="p-6 bg-white">
+              <div class="flex items-center justify-center mb-3">
+                <div class="p-3 rounded-full bg-teal-100 text-teal-600 mr-3">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m6-6a4 4 0 11-8 0 4 4 0 018 0z"/>
+                  </svg>
+                </div>
+                <div class="text-left">
+                  <p class="text-sm font-medium text-gray-600">Active Agents</p>
+                  <p class="text-2xl font-semibold text-teal-800">{{ stats.activeAgents }}</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </template>
       </div>
 
       <!-- Latest Surveys -->
       <div class="mb-8">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold text-gray-900">Latest Surveys</h2>
-          <router-link to="/surveys" class="text-blue-600 hover:text-blue-800 font-medium">View All Surveys</router-link>
-        </div>
-        <div v-if="surveys.length === 0" class="text-gray-500">No surveys available.</div>
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div v-for="(survey, idx) in latestSurveys" :key="survey.id" class="border rounded-lg p-6 cursor-pointer transform hover:-translate-y-1 transition" :class="`border-t-4 ${['border-blue-500','border-green-500','border-pink-500','border-teal-500'][idx % 4]}`" @click="goToSurvey(survey.id)">
-            <h3 class="font-bold text-lg text-gray-900 mb-2">{{ survey.title }}</h3>
-            <p class="text-sm text-gray-600 mb-2">{{ survey.description }}</p>
-            <div class="flex justify-between text-sm text-gray-500">
-              <span>Questions: {{ survey.questions_count }}</span>
-              <span>Responses: {{ survey.responses_count }}</span>
+          <h2 class="text-xl font-semibold text-gray-900">Active Surveys</h2>
+          <div class="w-full md:w-1/2 flex items-center justify-end">
+            <div class="w-full md:w-3/4 flex items-center space-x-3">
+              <select v-model="selectedSurveyDropdown" @change="openSurveyFromDropdown" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full">
+                <option value="">Select a survey...</option>
+                <option v-for="s in surveys" :key="s.id" :value="s.id">{{ s.title }}{{ (s.status !== 1 && s.status !== '1') ? ' (inactive)' : '' }}</option>
+              </select>
+              <button v-if="selectedSurveyDropdown" @click="selectedSurveyDropdown = ''" class="text-sm text-gray-600 hover:text-gray-800">Clear</button>
             </div>
-            <div class="mt-2 text-xs text-gray-400">Created: {{ formatDate(survey.created_at) }}</div>
           </div>
-        </div>
+          </div>
+        <div v-if="surveys.length === 0" class="text-gray-500">No surveys available.</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <template v-if="latestSurveys.length === 0 && loading">
+              <div v-for="n in 4" :key="n" class="border rounded-lg p-6 bg-white">
+                <div class="flex items-center justify-center h-24">
+                  <svg class="animate-spin h-8 w-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                  </svg>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              <div v-for="(survey, idx) in latestSurveys" :key="survey.id" class="border rounded-lg p-4 cursor-pointer transform hover:-translate-y-1 transition relative overflow-hidden" :class="`border-t-4 ${['border-blue-500','border-green-500','border-pink-500','border-teal-500'][idx % 4]}`" @click="goToSurvey(survey.id)">
+                <!-- per-card inline spinner -->
+                <div v-if="loading" class="absolute top-3 right-3">
+                  <svg class="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                  </svg>
+                </div>
+
+                <div class="flex items-start">
+                  <div class="w-28 h-28 mr-4 flex-shrink-0">
+                    <!-- small analytics graphic: if analytics present, show pie chart, else placeholder -->
+                    <component v-if="getMiniChartData(survey.id)" :is="PieChart" :data="getMiniChartData(survey.id).data" :labels="getMiniChartData(survey.id).labels" :colors="pieColors" :width="112" :height="112" :showLegend="false" />
+                    <div v-else class="w-28 h-28 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-500">No data</div>
+                  </div>
+                  <div class="flex-1">
+                    <h3 class="font-bold text-lg text-gray-900 mb-1">{{ survey.title }}</h3>
+                    <p class="text-sm text-gray-600 mb-2 truncate">{{ survey.description }}</p>
+                    <div class="flex items-center text-sm text-gray-500 space-x-4">
+                      <span>Questions: {{ survey.questions_count }}</span>
+                      <span>Responses: {{ survey.responses_count }}</span>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-400">Created: {{ formatDate(survey.created_at) }}</div>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
       </div>
   <!-- Analytics Modal -->
   <SurveyAnalyticsModal :surveyId="analyticsSurveyId" :visible="showAnalyticsModal" @close="() => { showAnalyticsModal = false; analyticsSurveyId = null }" />
@@ -107,6 +160,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import SurveyAnalyticsModal from '@/components/SurveyAnalyticsModal.vue'
+import PieChart from '@/components/PieChart.vue'
 
 // Cache for storing fetched data
 const dataCache = ref({
@@ -130,6 +184,7 @@ const analytics = ref([])
 const agents = ref([])
 const surveys = ref([])
 const latestSurveys = ref([])
+const selectedSurveyDropdown = ref('')
 const router = useRouter()
 const showAnalyticsModal = ref(false)
 const analyticsSurveyId = ref(null)
@@ -744,6 +799,34 @@ const fetchAnalytics = async () => {
   }
 }
 
+// Mini-chart helper: return simple labels/data for a survey id based on analytics
+const getMiniChartData = (surveyId) => {
+  if (!analytics.value || !analytics.value.length) return null
+  const surveyData = analytics.value.find(s => String(s.survey_id) === String(surveyId) || String(s.survey_id) === String(surveyId))
+  if (!surveyData || !surveyData.questions || surveyData.questions.length === 0) return null
+
+  // Find the question with most answers that has options
+  let bestQuestion = null
+  for (const q of surveyData.questions) {
+    if (q.answers && Object.keys(q.answers).length > 0) {
+      if (!bestQuestion || q.total_answers > bestQuestion.total_answers) {
+        bestQuestion = q
+      }
+    }
+  }
+
+  if (!bestQuestion) return null
+
+  const entries = Object.entries(bestQuestion.answers || {})
+  if (!entries.length) return null
+
+  // Take top 5 options
+  const sorted = entries.sort((a, b) => b[1] - a[1]).slice(0, 5)
+  const labels = sorted.map(([k]) => k)
+  const data = sorted.map(([_, v]) => v)
+  return { labels, data }
+}
+
 const calculateAgentStatsFromFilteredResponses = async (filteredResponses) => {
   try {
     const agentMap = new Map()
@@ -1087,10 +1170,16 @@ const goToSurvey = (id) => {
   showAnalyticsModal.value = true
 }
 
+const openSurveyFromDropdown = () => {
+  if (!selectedSurveyDropdown.value) return
+  analyticsSurveyId.value = selectedSurveyDropdown.value
+  showAnalyticsModal.value = true
+}
+
 onMounted(() => {
   // Load full dashboard data first (responses, surveys, agents) so today's counts are accurate,
   // then loadSurveys to compute latestSurveys and any derived values.
   fetchDashboardData().catch(() => {})
   loadSurveys()
 })
-</script> 
+</script>

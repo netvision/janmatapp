@@ -645,32 +645,52 @@ class ResponseController extends Controller
      */
     private function calculateDashboardAnalytics($responseQuery)
     {
-        // Clone query for different aggregations
-        $responseIds = array_column($responseQuery->select('id')->asArray()->all(), 'id');
-        
-        \Yii::info('Response IDs found: ' . count($responseIds) . ' responses', 'analytics');
-        \Yii::info('Response IDs: ' . json_encode($responseIds), 'analytics');
-        
-        if (empty($responseIds)) {
-            \Yii::info('No response IDs found, returning empty array', 'analytics');
-            return [];
+        // Build a parameterized WHERE clause based on the current request filters
+        $request = Yii::$app->request;
+        $params = [];
+        $where = [];
+
+        $surveyId = $request->get('survey_id');
+        if ($surveyId !== null && $surveyId !== '') {
+            $where[] = 'r.survey_id = :survey_id';
+            $params[':survey_id'] = (int) $surveyId;
         }
-        
-        // Check how many responses actually have answers
-        $responsesWithAnswers = Yii::$app->db->createCommand("
-            SELECT DISTINCT r.id 
-            FROM responses r 
-            JOIN answers a ON a.response_id = r.id 
-            WHERE r.id IN (" . implode(',', array_map('intval', $responseIds)) . ")
-        ")->queryColumn();
-        
-        \Yii::info('Responses with answers: ' . count($responsesWithAnswers) . ' out of ' . count($responseIds), 'analytics');
-        
-        // Escape the response IDs to prevent SQL injection
-        $escapedIds = array_map('intval', $responseIds);
-        $idsString = implode(',', $escapedIds);
-        
-        // Get survey analytics with SQL aggregation
+
+        $agentId = $request->get('agent_id');
+        if ($agentId !== null && $agentId !== '') {
+            $where[] = 'r.agent_id = :agent_id';
+            $params[':agent_id'] = (int) $agentId;
+        }
+
+        $dateFrom = $request->get('date_from');
+        if ($dateFrom !== null && $dateFrom !== '') {
+            $ts = strtotime($dateFrom);
+            if ($ts !== false) {
+                $where[] = 'r.created_at >= :date_from';
+                $params[':date_from'] = $ts;
+            }
+        }
+
+        $dateTo = $request->get('date_to');
+        if ($dateTo !== null && $dateTo !== '') {
+            $ts = strtotime($dateTo);
+            if ($ts !== false) {
+                $where[] = 'r.created_at <= :date_to';
+                $params[':date_to'] = $ts;
+            }
+        }
+
+        // Respect agent-scoped access if applicable
+        $user = Yii::$app->user->identity;
+        $isAgent = $user && (method_exists($user, 'isAgent') ? $user->isAgent() : ($user->role === 'agent' || $user->type === 'agent'));
+        if ($isAgent) {
+            $where[] = 'r.agent_id = :_agent_scope_id';
+            $params[':_agent_scope_id'] = (int) $user->id;
+        }
+
+        $whereSql = count($where) ? implode(' AND ', $where) : '1=1';
+
+        // Single aggregated SQL query with bound parameters to avoid large PHP memory usage
         $sql = "
             SELECT 
                 s.id as survey_id,
@@ -685,41 +705,35 @@ class ResponseController extends Controller
             JOIN surveys s ON r.survey_id = s.id
             JOIN answers a ON a.response_id = r.id
             JOIN questions q ON a.question_id = q.id
-            WHERE r.id IN (" . $idsString . ")
+            WHERE {$whereSql}
             GROUP BY s.id, s.title, q.id, q.text, q.type, a.value
             ORDER BY s.id, q.id, answer_count DESC
         ";
-        
-        \Yii::info('Executing SQL: ' . $sql, 'analytics');
-        
+
+        \Yii::info('Executing aggregated analytics SQL', 'analytics');
+
         try {
-            $rawData = Yii::$app->db->createCommand($sql)->queryAll();
-            \Yii::info('Raw SQL results: ' . json_encode($rawData), 'analytics');
+            $rawData = Yii::$app->db->createCommand($sql, $params)->queryAll();
         } catch (\Exception $e) {
-            \Yii::error('SQL Error: ' . $e->getMessage(), 'analytics');
+            \Yii::error('Analytics SQL Error: ' . $e->getMessage(), 'analytics');
             return [];
         }
-        
+
         // Process raw data into structured format
         $analytics = [];
-        $currentSurvey = null;
-        $currentQuestion = null;
-        
         foreach ($rawData as $row) {
             $surveyId = $row['survey_id'];
             $questionId = $row['question_id'];
-            
-            // Initialize survey if new
+
             if (!isset($analytics[$surveyId])) {
                 $analytics[$surveyId] = [
                     'survey_id' => $surveyId,
                     'survey_title' => $row['survey_title'],
-                    'total_responses' => $row['total_responses'],
+                    'total_responses' => (int) $row['total_responses'],
                     'questions' => [],
                 ];
             }
-            
-            // Initialize question if new
+
             if (!isset($analytics[$surveyId]['questions'][$questionId])) {
                 $analytics[$surveyId]['questions'][$questionId] = [
                     'question_id' => $questionId,
@@ -730,33 +744,29 @@ class ResponseController extends Controller
                     'total_answers' => 0,
                 ];
             }
-            
-            // Add answer data
+
             $questionType = $row['question_type'];
             $answerValue = $row['answer_value'];
             $answerCount = (int) $row['answer_count'];
-            
+
             $analytics[$surveyId]['questions'][$questionId]['total_answers'] += $answerCount;
-            
+
             if (in_array($questionType, ['single_choice', 'multiple_choice', 'rating'])) {
                 $analytics[$surveyId]['questions'][$questionId]['answers'][$answerValue] = $answerCount;
             } else {
                 $analytics[$surveyId]['questions'][$questionId]['text_answers'][$answerValue] = $answerCount;
             }
         }
-        
+
         // Convert to array format expected by frontend
         $result = [];
-        $totalResponsesInResult = 0;
         foreach ($analytics as $survey) {
-            $totalResponsesInResult += $survey['total_responses'];
             $survey['questions'] = array_values($survey['questions']);
             $result[] = $survey;
         }
-        
-        \Yii::info('Analytics summary - Total surveys: ' . count($result) . ', Total responses: ' . $totalResponsesInResult, 'analytics');
-        \Yii::info('Final analytics result: ' . json_encode($result), 'analytics');
-        
+
+        \Yii::info('Final analytics result prepared', 'analytics');
+
         return $result;
     }
 }
