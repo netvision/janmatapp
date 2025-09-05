@@ -1,4 +1,5 @@
 node_modules
 backend
+.vscode
 .DS_Store
 ._*
