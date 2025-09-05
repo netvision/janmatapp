@@ -110,6 +110,15 @@ import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import { format } from 'date-fns'
 
+const toDate = (ts) => {
+  if (ts === undefined || ts === null) return null
+  if (typeof ts === 'number') return ts > 1e12 ? new Date(ts) : new Date(ts * 1000)
+  const n = Number(ts)
+  if (!Number.isNaN(n)) return n > 1e12 ? new Date(n) : new Date(n * 1000)
+  const d = new Date(ts)
+  return isNaN(d.getTime()) ? null : d
+}
+
 const route = useRoute()
 
 const response = ref(null)
@@ -117,7 +126,8 @@ const answers = ref([])
 const loading = ref(true)
 
 const formatDate = (timestamp) => {
-  return format(new Date(timestamp * 1000), 'MMM dd, yyyy HH:mm')
+  const d = toDate(timestamp)
+  return d ? format(d, 'MMM dd, yyyy HH:mm') : ''
 }
 
 const getQuestionTypeText = (type) => {

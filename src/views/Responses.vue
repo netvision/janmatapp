@@ -430,7 +430,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import { format } from 'date-fns'
 
@@ -503,8 +504,20 @@ const visiblePages = computed(() => {
   return pages
 })
 
+// Normalize various timestamp formats (seconds, milliseconds, numeric strings, or ISO strings)
+const toDate = (ts) => {
+  if (ts === undefined || ts === null) return null
+  if (typeof ts === 'number') return ts > 1e12 ? new Date(ts) : new Date(ts * 1000)
+  const n = Number(ts)
+  if (!Number.isNaN(n)) return n > 1e12 ? new Date(n) : new Date(n * 1000)
+  const d = new Date(ts)
+  return isNaN(d.getTime()) ? null : d
+}
+
 const formatDate = (timestamp) => {
-  return format(new Date(timestamp * 1000), 'MMM dd, yyyy HH:mm')
+  const d = toDate(timestamp)
+  if (!d) return ''
+  return format(d, 'MMM dd, yyyy HH:mm')
 }
 
 const playVoiceRecording = (response) => {
@@ -774,7 +787,11 @@ const calculateFilteredSummary = async () => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const todayTimestamp = Math.floor(today.getTime() / 1000)
-    const todayCount = allFilteredResponses.filter(r => r.created_at >= todayTimestamp).length
+    const todayCount = allFilteredResponses.filter(r => {
+      const rd = toDate(r.created_at)
+      if (!rd) return false
+      return Math.floor(rd.getTime() / 1000) >= todayTimestamp
+    }).length
     
     summary.value = {
       totalResponses: total,
@@ -819,7 +836,11 @@ const calculateSummaryFromResponses = () => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayTimestamp = Math.floor(today.getTime() / 1000)
-  const todayCount = responses.value.filter(r => r.created_at >= todayTimestamp).length
+  const todayCount = responses.value.filter(r => {
+    const rd = toDate(r.created_at)
+    if (!rd) return false
+    return Math.floor(rd.getTime() / 1000) >= todayTimestamp
+  }).length
   
   summary.value = {
     totalResponses: total,
@@ -843,9 +864,31 @@ const changePerPage = () => {
   loadResponses()
 }
 
+const route = useRoute()
+
+// Initialize filters from route query (so /responses?survey_id=123 loads that survey only)
+if (route && route.query) {
+  if (route.query.survey_id) filters.value.survey_id = route.query.survey_id
+  if (route.query.agent_id) filters.value.agent_id = route.query.agent_id
+}
+
+watch(() => route.query, (q) => {
+  if (q.survey_id !== undefined) {
+    filters.value.survey_id = q.survey_id
+    pagination.value.current_page = 1
+    loadResponses()
+  }
+})
+
 onMounted(() => {
+  // Apply route query as initial filters before loading data
+  const q = route && route.query ? route.query : {}
+  if (q.survey_id) filters.value.survey_id = q.survey_id
+  if (q.agent_id) filters.value.agent_id = q.agent_id
+
   loadSurveys()
   loadAgents()
+  // Now load responses with filters applied
   loadResponses()
 })
 </script> 

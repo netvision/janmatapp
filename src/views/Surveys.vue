@@ -283,6 +283,15 @@ import { ref, onMounted } from 'vue'
 import api from '@/services/api'
 import { format } from 'date-fns'
 
+const toDate = (ts) => {
+  if (ts === undefined || ts === null) return null
+  if (typeof ts === 'number') return ts > 1e12 ? new Date(ts) : new Date(ts * 1000)
+  const n = Number(ts)
+  if (!Number.isNaN(n)) return n > 1e12 ? new Date(n) : new Date(n * 1000)
+  const d = new Date(ts)
+  return isNaN(d.getTime()) ? null : d
+}
+
 const surveys = ref([])
 const showQuestionModal = ref(false)
 const showResponseModal = ref(false)
@@ -311,7 +320,8 @@ const getStatusText = (status) => {
 }
 
 const formatDate = (timestamp) => {
-  return format(new Date(timestamp * 1000), 'MMM dd, yyyy')
+  const d = toDate(timestamp)
+  return d ? format(d, 'MMM dd, yyyy') : ''
 }
 
 const loadSurveys = async () => {
